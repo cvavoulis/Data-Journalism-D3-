@@ -25,40 +25,69 @@ var svg=d3.select("#scatter")
 var chartGroup = svg.append("g")
 .attr("transform", `translate(${margin.left}, ${margin.top})`);
 
-// poverty="poverty"
-// obesity="obesity"
 
-// function xScale(econData, poverty) {
-//   // create scales
-//   var xLinearScale = d3.scaleLinear()
-//     .domain([d3.min(econData, d => d[poverty]) * 0.8,
-//       d3.max(econData, d => d[poverty]) * 1.2
-//     ])
-//     .range([0, width]);
+choiceX="poverty"
 
-//   return xLinearScale;
-// }
+function xScale(econData, choiceX) {
+  // create scales
+  var xLinearScale = d3.scaleLinear()
+    .domain([d3.min(econData, d => d[choiceX]) * 0.8,
+      d3.max(econData, d => d[choiceX]) * 1.2
+    ])
+    .range([0, width]);
 
-// function yScale(econData, obesity) {
+  return xLinearScale;
+}
+
+// function yScale(econData, choiceY) {
 //   // create scales
 //   var yLinearScale = d3.scaleLinear()
-//     .domain([d3.min(econData, d => d[obesity]) * 0.8,
-//       d3.max(econData, d => d[obesity]) * 1.2
+//     .domain([d3.min(econData, d => d[choiceY]) * 0.8,
+//       d3.max(econData, d => d[choiceY]) * 1.2
 //     ])
 //     .range([0, width]);
 
 //   return yLinearScale;
 // }
 
-// function renderXAxes(newXScale, xAxis) {
-//   var bottomAxis = d3.axisBottom(newXScale);
+function renderXAxes(newXScale, xAxis) {
+  var bottomAxis = d3.axisBottom(newXScale);
 
-//   xAxis.transition()
-//     .duration(1000)
-//     .call(bottomAxis);
+  xAxis.transition()
+    .duration(1000)
+    .call(bottomAxis);
 
-//   return xAxis;
-// }
+  return xAxis;
+}
+
+function updateToolTip(choiceX, circlesGroup) {
+
+  if (choiceX === "poverty") {
+    var label = "Poverty:";
+  }
+  else {
+    var label = "Age:";
+  }
+
+  var toolTip = d3.tip()
+    .attr("class", "tooltip")
+    .offset([80, -60])
+    .html(function(d) {
+      return (`${d.state}<br>${label} ${d[chosenXAxis]}`);
+    });
+
+  circlesGroup.call(toolTip);
+
+  circlesGroup.on("mouseover", function(data) {
+    toolTip.show(data);
+  })
+    // onmouseout event
+    .on("mouseout", function(data, index) {
+      toolTip.hide(data);
+    });
+
+  return circlesGroup;
+}
 
 // function renderYAxes(newYScale, yAxis) {
 //   var bottomAxis = d3.axisBottom(newYScale);
@@ -93,18 +122,22 @@ d3.csv("assets/data/data.csv", (err, econData)=>{
         data.smokesHigh=+data.smokesHigh;
     });
 
+
+
 // create scale functions
-    var xLinearScale = d3.scaleLinear()
-    .domain([d3.min(econData, d => d.poverty)*0.8,d3.max(econData, d => d.poverty)*1.2])
-    .range([0, width]);
+  //   var xLinearScale = d3.scaleLinear()
+  //   .domain([d3.min(econData, d => d.choiceX)*0.8,d3.max(econData, d => d.choiceX)*1.2])
+  //   .range([0, width]);
+
 
 
   var yLinearScale = d3.scaleLinear()
     .domain([d3.min(econData, d => d.healthcare)*0.8,d3.max(econData, d => d.healthcare)*1.2])
     .range([height, 0]);
 
-    // var xLinearScale=xScale(econData, poverty)
-    // var yLinearScale=yScale(econData, obesity)
+
+    var xLinearScale=xScale(econData, choiceX)
+    // var yLinearScale=yScale(econData, "healthcare")
 
   // Create axis functions
 
@@ -112,7 +145,7 @@ d3.csv("assets/data/data.csv", (err, econData)=>{
   var leftAxis = d3.axisLeft(yLinearScale);
 
 // add axes to chart 
-  chartGroup.append("g")
+  var xAxis= chartGroup.append("g")
     .attr("transform", `translate(0, ${height})`)
     .call(bottomAxis);
 
@@ -125,14 +158,15 @@ var circlesGroup = chartGroup.selectAll("circle")
 .enter()
 
 var circles=circlesGroup.append("circle")
-.attr("cx", d => xLinearScale(d.poverty)+6)
-.attr("cy", d => yLinearScale(d.healthcare)-5)
+.attr("cx", d => xLinearScale(d.choiceX)+6)
+.attr("cy", d => yLinearScale(d.choiceY)-5)
 .attr("r", "15")
 .attr("fill", "blue")
 .attr("opacity", .75)
 .classed("stateCircle", true);
 
-
+var labelsGroup = chartGroup.append("g")
+.attr("transform", `translate(${width / 2}, ${height + 20})`);
 // label the axes
 chartGroup.append("text")
 .attr("transform", "rotate(-90)")
@@ -141,53 +175,102 @@ chartGroup.append("text")
 .attr("dy", "1em")
 .attr("class", "axisText")
 .text("Lacks Healthcare (%)");
+// ABOVE NOT SURE - MAKE TWO AND SPACE THEM OUT?
 
-chartGroup.append("text")
-.attr("transform", `translate(${width / 2}, ${height + margin.top + 30})`)
-.attr("class", "axisText")
-.text("In Poverty (%)");
+var textPoverty=labelsGroup.append("text")
+.attr("x", 0)
+.attr("y", 20)
+.attr("value", "poverty") // value to grab for event listener
+.classed("active", true)
+.text("Poverty");
 
-var text=circlesGroup.append("text")
-.attr("x", d=>xLinearScale(d.poverty))
+var textAge=labelsGroup.append("text")
+.attr("x", 0)
+.attr("y", 20)
+.attr("value", "age") // value to grab for event listener
+.classed("active", true)
+.text("Age");
+// SAME 
+
+circles.append("text")
+.attr("x", d=>xLinearScale(d[choiceX]))
 .attr("y", d=>yLinearScale(d.healthcare))
-// .attr("class", "stateText")
+.attr("class", "stateText")
 .attr("fill", "white")
 .text(d => d.abbr)
 .style("text-align", "center")
 .style("font-size", "10px")
-.style("font-weight", "bold")
+.style("font-weight", "bold"); 
 
-// Initialize Tooltip
-    var toolTip = d3.tip()
-      .attr("class", "d3-tip")
-      .html(function(d) {
-        return (`State: ${d.abbr}<br>Poverty: ${(d.poverty)}%<br>Healthcare: ${d.healthcare}%
-      `);
-    });
+var circles = updateToolTip(choiceX, circles);
 
-//  Create the tooltip in circles and text.
-    chartGroup.call(toolTip);
+// // Initialize Tooltip
+//     var toolTip = d3.tip()
+//       .attr("class", "d3-tip")
+//       .html(function(d) {
+//         return (`State: ${d.abbr}<br>Poverty: ${(d.choiceX)}%<br>Healthcare: ${d.choiceY}%
+//       `);
+//     });
 
-// Create "mouseover" event listener to display tooltip
-    circles.on("mouseover", function(d) {
-      toolTip.show(d, this);
-    })
-// Create "mouseout" event listener to hide tooltip
-    .on("mouseout", function(d) {
-      toolTip.hide(d, this);
-    });
+// //  Create the tooltip in circles and text.
+//     text.call(toolTip);
 
-// Create mouseover/mouseout for text also
-    text.on("mouseover", function(d) {
-      toolTip.show(d, this);
-    })
-// Create "mouseout" event listener to hide tooltip
-    .on("mouseout", function(d) {
-      toolTip.hide(d, this);
-    });
+// // Create mouseover/mouseout for text also
+//     text.on("mouseover", function(d) {
+//       toolTip.show(d, this);
+//     })
+// // Create "mouseout" event listener to hide tooltip
+//     .on("mouseout", function(d) {
+//       toolTip.hide(d, this);
+//     });
 
+labelsGroup.selectAll("text")
+.on("click", function() {
+  // get value of selection
+  var value = d3.select(this).attr("value");
+  if (value !== choiceX) {
+
+    // replaces chosenXAxis with value
+    chosenXAxis = value;
+
+    // console.log(chosenXAxis)
+
+    // functions here found above csv import
+    // updates x scale for new data
+    xLinearScale = xScale(econData, choiceX);
+
+    
+    // updates x axis with transition
+    xAxis = renderAxes(xLinearScale, xAxis);
+
+    // updates circles with new x values
+    circles = renderCircles(circles, xLinearScale, choiceX);
+
+    // updates tooltips with new info
+    circles = updateToolTip(choiceX, circles);
+
+    // changes classes to change bold text
+    if (choiceX === "poverty") {
+      textPoverty
+        .classed("active", true)
+        .classed("inactive", false);
+      textAge
+        .classed("active", false)
+        .classed("inactive", true);
+    }
+    else {
+      textPoverty
+        .classed("active", false)
+        .classed("inactive", true);
+      textAge
+        .classed("active", true)
+        .classed("inactive", false);
+    }
+  }
 });
 
+
+});
 
 
 
